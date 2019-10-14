@@ -9,7 +9,7 @@ const app = express();
 
 const db = monk(process.env.MONGO_URI || 'localhost/trollbox');
 const trollposts = db.get('trollposts');
-
+const rhymes = db.get('rhymes');
 app.use(cors());
 
 // body parser middleware any income requests that has a content type of application json will be added to the body so we can access e.g. req.body
@@ -26,6 +26,14 @@ app.get('/trolls', (req, res) => {
     .find()
     .then(trollposts => {
       res.json(trollposts);
+    });
+});
+
+app.get('/rhymes', (req, res) => {
+  rhymes
+    .find()
+    .then(rhymes => {
+      res.json(rhymes);
     });
 });
 
