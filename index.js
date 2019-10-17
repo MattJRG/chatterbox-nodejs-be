@@ -41,6 +41,16 @@ function isValidPost(post) {
   return post.content && post.content.toString().trim() !== '';
 }
 
+function isValidRhyme(data) {
+  if (data.content.isArray) {
+    data.content.array.forEach(element => {
+      element = element.toString().trim();
+    });
+    return data;
+  }
+  return false;
+}
+
 // app.use(rateLimit({
 //   windowMs: 1000, // 1 per second
 //   max: 1
@@ -62,6 +72,24 @@ app.post('/trolls', (req, res) => {
     res.status(422);
     res.json({
       message: "Hey! We don't accept blank content!"
+    });
+  }
+});
+
+app.post('/rhymes', (req, res) => {
+  if (isValidRhyme(req.body)) {
+    const rhyme = {
+      rhymes: req.body.rhymes.array.forEach(element => element = element.toString())
+    }
+    rhymes
+      .insert(rhyme)
+      .then(createdRhyme => {
+        res.json(createdRhyme);
+      });
+  } else {
+    res.status(422);
+    res.json({
+      message: "Hey! Rhymes must be an array of strings"
     });
   }
 });
