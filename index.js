@@ -42,10 +42,7 @@ function isValidPost(post) {
 }
 
 function isValidRhyme(data) {
-  if (data.content.isArray) {
-    data.content.array.forEach(element => {
-      element = element.toString().trim();
-    });
+  if (data.content instanceof Array) {
     return data;
   }
   return false;
@@ -78,8 +75,12 @@ app.post('/trolls', (req, res) => {
 
 app.post('/rhymes', (req, res) => {
   if (isValidRhyme(req.body)) {
+    console.log(req.body.content)
+
+    let rhymesArray = [];
+    req.body.content.forEach(el => rhymesArray.push(el.toString().trim()))
     const rhyme = {
-      rhymes: req.body.rhymes.array.forEach(element => element = element.toString())
+      rhymes: rhymesArray
     }
     rhymes
       .insert(rhyme)
@@ -88,6 +89,7 @@ app.post('/rhymes', (req, res) => {
       });
   } else {
     res.status(422);
+    // console.log(req.body.content)
     res.json({
       message: "Hey! Rhymes must be an array of strings"
     });
