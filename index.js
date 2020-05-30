@@ -1,101 +1,69 @@
 const express = require('express'); 
-// get rid of cors errors
 const cors = require('cors');
-// library for talking to mongo db
-const monk = require('monk');
 // const rateLimit = require('express-rate-limit');
+var path = require('path');
 
+// Routes
+const trollsRouter = require('./routes/trolls');
+const rhymesRouter = require('./routes/rhymes');
+const userRouter = require('./routes/user');
+
+// Setup Express.js
 const app = express();
+const port = 5000;
 
-const db = monk(process.env.MONGO_URI || 'localhost/trollbox');
-const trollposts = db.get('trollposts');
-const rhymes = db.get('rhymes');
-app.use(cors());
+// specify the folder
+app.use(express.static(path.join(__dirname, 'uploads')));
+// headers and content type
+app.use(function (req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+  next();
+});
 
 // body parser middleware any income requests that has a content type of application json will be added to the body so we can access e.g. req.body
 app.use(express.json());
+app.use(express.urlencoded({
+  extended: false
+}));
+app.use(cors());
 
+// Make 'public" folder publically available
+app.use('/public', express.static('public'));
+
+// API Route
 app.get('/', (req, res) => {
   res.json({
     message: 'Hello there'
   })
 });
 
-app.get('/trolls', (req, res) => {
-  trollposts
-    .find()
-    .then(trollposts => {
-      res.json(trollposts);
-    });
+app.use('/trolls', trollsRouter);
+app.use('/rhymes', rhymesRouter);
+app.use('/upload', userRouter);
+
+// Error favicon.ico
+app.get('favicon.ico', (req, res) => res.status(204));
+
+// Error
+app.use((req, res, next) => {
+  // Error goes via `next()` method
+  setImmediate(() => {
+    next(new Error('Something went wrong'));
+  });
 });
 
-app.get('/rhymes', (req, res) => {
-  rhymes
-    .find()
-    .then(rhymes => {
-      res.json(rhymes);
-    });
+app.use(function (err, req, res, next) {
+  console.error(err.message);
+  if (!err.statusCode) err.statusCode = 500;
+  res.status(err.statusCode).send(err.message);
 });
-
-function isValidPost(post) {
-  return post.content && post.content.toString().trim() !== '';
-}
-
-function isValidRhyme(data) {
-  if (data.content instanceof Array) {
-    return data;
-  }
-  return false;
-}
 
 // app.use(rateLimit({
 //   windowMs: 1000, // 1 per second
 //   max: 1
 // }));
 
-app.post('/trolls', (req, res) => {
-  if (isValidPost(req.body)) {
-    const post = {
-      name: req.body.username.toString(),
-      content: req.body.content.toString(),
-      created: new Date()
-    };
-    trollposts
-      .insert(post)
-      .then(createdPost => {
-        res.json(createdPost);
-      });
-  } else {
-    res.status(422);
-    res.json({
-      message: "Hey! We don't accept blank content!"
-    });
-  }
-});
-
-app.post('/rhymes', (req, res) => {
-  if (isValidRhyme(req.body)) {
-    console.log(req.body.content)
-
-    let rhymesArray = [];
-    req.body.content.forEach(el => rhymesArray.push(el.toString().trim()))
-    const rhyme = {
-      rhymes: rhymesArray
-    }
-    rhymes
-      .insert(rhyme)
-      .then(createdRhyme => {
-        res.json(createdRhyme);
-      });
-  } else {
-    res.status(422);
-    // console.log(req.body.content)
-    res.json({
-      message: "Hey! Rhymes must be an array of strings"
-    });
-  }
-});
-
-app.listen(5000, () => {
-  console.log('Listening on http://localhost:5000');
+app.listen(port, () => {
+  console.log(`Listening on http://localhost:${port}`);
 });
