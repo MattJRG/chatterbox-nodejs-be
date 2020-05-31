@@ -4,6 +4,7 @@ const monk = require('monk');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
 const db = monk(process.env.MONGO_URI || 'localhost/trollbox');
+const bcrypt = require('bcrypt');
 
 const trollposts = db.get('trollposts');
 const users = db.get('trollusers');
@@ -17,6 +18,15 @@ function isValidPost(post) {
 function isValidUserData(data) {
   // to be built....
   return true;
+}
+
+async function hashPassword(password, saltRounds) {
+ const hashedPassword = await bcrypt.hash(password, 10);
+  return hashedPassword;
+}
+
+async function isPasswordCorrect(enteredPassword, user) {
+  return await bcrypt.compare(enteredPassword, user.password)
 }
 
 function isValidLoginData(data) {
@@ -62,33 +72,41 @@ router.post('/', verifyToken, (req, res) => {
 });
 
 router.post('/register', (req, res) => {
-  // console.log(req.body);
-  let userData = req.body;
   if (isValidUserData()) {
     users
-      .findOne({ name: userData.name })
+      .findOne({ username: req.body.username })
       .then(result => {
         // If user not in database add user to database
         if (result === null) {
+          hashPassword(req.body.password, 10)
+          .then(hashedPassword => {
+            let userData = {
+              username: req.body.username,
+              email: req.body.email,
+              password: hashedPassword,
+              shoeSize: req.body.shoeSize
+            }
           users
             .insert(userData)
             .then(createdUser => {
               res.status(200);
               res.json({
-                message: `User ${createdUser.name} successfully added to database!`
+                message: `User ${createdUser.username} successfully added to database!`
               });
+              console.log(createdUser);
             })
             .catch(error => {
               res.status(422);
               res.json({
-                message: `Sorry ${userData.name} could not be added to the database!`
+                message: `Sorry ${userData.username} could not be added to the database!`
               });
             })
+          })
         // If user is already in the database ask the user to login instead
         } else {
           res.status(500);
           res.json({
-            message: `${userData.name} already exists in the database, please login instead!`
+            message: `${userData.username} already exists in the database, please login instead!`
           });
         }
       })
@@ -97,37 +115,67 @@ router.post('/register', (req, res) => {
 
 router.post('/login', (req, res) => {
   let loginData = req.body;
+  let query;
+  if (loginData.hasOwnProperty('email')) {
+    console.log('Login by email');
+    query = { email: loginData.email }
+  } else {
+    console.log('Login by username');
+    query = { username: loginData.username };
+  }
   if (isValidLoginData(loginData)) {
     // Check if user is in database
     users
-      .findOne({ name: loginData.name, pass: loginData.pass })
-      .then(result => {
+      .findOne(query)
+      .then(user => {
         // If null user details are incorrect or user needs to register
-        if (result === null) {
+        if (user === null) {
           res.status(400);
           res.json({
-            message: `Login details incorrect`
+            message: `That user does not exist`
           })
         } else {
-          console.log(result);
-          // const user = {
-          //   id: 1,
-          //   username: 'Matt',
-          //   email: 'matt@yopmail.com'
-          // }
-      
-          jwt.sign({result}, 'secretKey', (err, token) => {
-            res.status(200);
-            res.json({
-              token: token,
-              message: `Login successful, welcome ${result.name}`
-            })
-          })
+          // If user is in the database check if passwords matches
+          isPasswordCorrect(loginData.password, user).then(correctPassword => {
+            // If password correct login successful
+            if (correctPassword) {
+              jwt.sign({user}, 'secretKey', (err, token) => {
+                res.status(200);
+                res.json({
+                  token: token,
+                  message: `Login successful, welcome ${user.username}`
+                })
+              })
+            // If password incorrect respond with error
+            } else {
+              res.status(400);
+              res.json({
+                message: `Login details are incorrect user`
+              })
+            }
+          });
         }
+      })
+      .catch(err => {
+        // If database unavailable respond with error
+        res.status(500);
+        res.json({
+          message: `Database currently unavailable`
+        })
       })
   }
 
 });
+
+// Route to request to reset password
+router.post('/forgot', (req, res) => {
+
+})
+
+// Route to reset the users password
+router.post('/reset', (req, res) => {
+
+})
 
 // Format of token
 // Authorization: Bearer <access_token>
