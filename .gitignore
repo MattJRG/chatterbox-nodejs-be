@@ -14,5 +14,9 @@
 !.vscode/extensions.json
 
 # System Files
+.env
 .DS_Store
 Thumbs.db
+/config/config.json
+/database/db.js
+

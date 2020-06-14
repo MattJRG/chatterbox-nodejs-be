@@ -2,10 +2,11 @@
   "name": "angular-chat-be",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js"
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "prod": "NODE_ENV=production node server.js"
   },
   "keywords": [],
   "author": "",
@@ -15,10 +16,15 @@
     "cors": "^2.8.5",
     "express": "^4.17.1",
     "express-rate-limit": "^5.0.0",
-    "jsonwebtoken": "^8.5.1",
+    "jsonwebtoken": "^8.3.0",
+    "lodash": "^4.17.15",
+    "mongoose": "^5.9.18",
     "monk": "^7.1.1",
     "morgan": "^1.9.1",
-    "multer": "^1.4.2"
+    "multer": "^1.4.2",
+    "passport": "^0.4.0",
+    "passport-local": "^1.0.0",
+    "tasktimer": "^3.0.0"
   },
   "devDependencies": {
     "nodemon": "^1.19.3"

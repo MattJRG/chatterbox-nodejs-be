@@ -1,20 +1,14 @@
 const express = require('express');
 // library for talking to mongo db
 const monk = require('monk');
-const jwt = require('jsonwebtoken');
 const router = express.Router();
 const db = monk(process.env.MONGO_URI || 'localhost/trollbox');
-const bcrypt = require('bcrypt');
-
-const trollposts = db.get('trollposts');
 const users = db.get('trollusers');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
-// Troll functions
-function isValidPost(post) {
-  return post.content && post.content.toString().trim() !== '';
-}
 
-// User functions
+// Auth functions
 function isValidUserData(data) {
   // to be built....
   return true;
@@ -33,43 +27,6 @@ function isValidLoginData(data) {
   // to be built....
   return true;
 }
-
-// Get trollposts without authentication
-router.get('/', (req, res) => {
-  trollposts
-    .find()
-    .then(trollposts => {
-      res.json(trollposts);
-    });
-});
-
-// Create trollposts - needs authentication
-router.post('/', verifyToken, (req, res) => {
-  jwt.verify(req.token, 'secretKey', (err, authData) => {
-    if (err) {
-      res.status(403);
-      res.json(`Unauthorised user, please login to post`);
-    } else {
-      if (isValidPost(req.body)) {
-        const post = {
-          name: req.body.username.toString(),
-          content: req.body.content.toString(),
-          created: new Date()
-        };
-        trollposts
-          .insert(post)
-          .then(createdPost => {
-            res.json(createdPost);
-          });
-      } else {
-        res.status(422);
-        res.json({
-          message: 'Hey! We don\'t accept blank content!'
-        });
-      }
-    }
-  })
-});
 
 router.post('/register', (req, res) => {
   if (isValidUserData()) {
@@ -177,27 +134,25 @@ router.post('/reset', (req, res) => {
 
 })
 
-// Format of token
-// Authorization: Bearer <access_token>
-
-// Verify token
-function verifyToken(req, res, next) {
-  // Get auth header value
-  const bearerHeader = req.headers['authorization'];
-  // Check if bearer is undefined
-  if (typeof bearerHeader !== 'undefined') {
-    // Split at the space
-    const bearer = bearerHeader.split(' ');
-    // Get token from array
-    const bearerToken = bearer[1];
-    // Set the token
-    req.token = bearerToken;
-    // Next middleware
-    next();
-  } else {
-    // Forbidden
-    res.sendStatus(403);
+module.exports = {
+  router: router,
+  // Verify token
+  verifyToken: function(req, res, next) {
+    // Get auth header value
+    const bearerHeader = req.headers['authorization'];
+    // Check if bearer is undefined
+    if (typeof bearerHeader !== 'undefined') {
+      // Split at the space
+      const bearer = bearerHeader.split(' ');
+      // Get token from array
+      const bearerToken = bearer[1];
+      // Set the token
+      req.token = bearerToken;
+      // Next middleware
+      next();
+    } else {
+      // Forbidden
+      res.sendStatus(403);
+    }
   }
 }
-
-module.exports = router;
