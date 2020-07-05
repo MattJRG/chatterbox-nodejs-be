@@ -11,13 +11,24 @@ passport.use(
         return done(err);
       // Unknown user
       } else if (!user) {
-        return done(null, false, { message: 'Email is not registered' });
+        return done(null, false, { message: 'Email is not registered.' });
       // Wrong password
       } else if (!user.verifyPassword(password)) {
         return done(null, false, { message: 'Wrong password.' });
+      } else if (!user.verified) {
+        return done(null, false, { message: 'Account not verified.'})
       // Authentication succeeded
       } else {
-        return done(null, user);
+        User.findOneAndUpdate({ email: username }, { lastActive: Date.now(), active: true }, { useFindAndModify: false }, (err, user) => {
+          if (!err) {
+            // Login successful - set user to active
+            return done(null, user);
+          } else {
+            // Login successful but couldn't update user active status
+            console.log(`Couldn't update user: ${username} active status.`)
+            return done(null, user);
+          }
+        });
       }
     });
   })

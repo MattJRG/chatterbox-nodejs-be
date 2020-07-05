@@ -10,31 +10,55 @@ const { format } = require('morgan');
 const TrollPost = mongoose.model('TrollPost');
 
 module.exports.getPosts = (req, res) => {
-  TrollPost.find()
-    .then(trollposts => {
-      let formattedPosts = trollposts.map(post => {
-        if (post.username === req.username) {
-          return {
-            id: post._id.toString(),
-            created: post.created,
-            username: post.username,
-            userId: post.userId,
-            content: post.content,
-            alt: false
-          }
-        } else {
-          return {
-          id: post._id.toString(),
-          created: post.created,
-          username: post.username,
-          userId: post.userId,
-          content: post.content,
-          alt: true
-          }
-        }
+  let queryParams = req.query;
+  TrollPost.countDocuments({}, (err, count) => {
+    postCount = count;
+  }).then(count => {
+    // If this is the initial query return the latest 10 records
+    if (queryParams.query === 'initial') {
+      TrollPost.find({}, null, {limit: 10, sort: {'created': -1}})
+      .then(trollposts => {
+        // Reverse array as it is in the wrong order
+        res.json(
+          {
+            posts: createFormattedPost(trollposts, req).reverse(),
+            totalPosts: count
+          });
+      });
+    // Else if we want the previous records
+    } else if (queryParams.query === 'previous') {
+      let record_id = queryParams.earliestId;
+      TrollPost.find({'_id': {$lt: record_id } }).sort({'created': -1}).limit(10)
+      .then(trollposts => {
+        // Reverse array as it is in the wrong order
+        res.json(
+          {
+            posts: createFormattedPost(trollposts, req).reverse(),
+            totalPosts: count
+          });
       })
-      res.json(formattedPosts);
-    });
+    } else if (queryParams.query === 'latest') {
+      let record_id = queryParams.latestId;
+      TrollPost.find({'_id': {$gt: record_id } })
+      .then(trollposts => {
+        // Reverse array as it is in the wrong order
+        res.json(
+          {
+            posts: createFormattedPost(trollposts, req),
+            totalPosts: count
+          });
+      })
+    } else {
+      TrollPost.find()
+      .then(trollposts => {
+        res.json(
+          {
+            posts: createFormattedPost(trollposts, req),
+            totalPosts: count
+          });
+      });
+    }
+  });
 };
 
 module.exports.createPost = (req, res) => {
@@ -60,8 +84,34 @@ module.exports.createPost = (req, res) => {
   }
 };
 
-// Helper functions 
-
+// Helper functions
 function isValidPost(post) {
   return post.content && post.content.toString().trim() !== '';
 }
+
+// Create the formatted response of posts
+function createFormattedPost(posts, req) {
+  return posts.map(post => {
+    if (post.username === req.username) return createPost(post, false);
+    else return createPost(post, true);
+  });
+}
+
+// Map the database post values to response post keys
+function createPost(post, alt) {
+  return {
+  id: post._id.toString(),
+  created: post.created,
+  username: post.username,
+  userId: post.userId,
+  content: post.content,
+  alt: alt
+  }
+}
+
+// const rateLimit = require('express-rate-limit');
+
+// app.use(rateLimit({
+//   windowMs: 1000, // 1 per second
+//   max: 1
+// }));

@@ -15,8 +15,8 @@ module.exports.verifyJwtToken = (req, res, next) => {
   } else {
     jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
       if (err) {
-        res.status(500);
-        res.json({"auth": false, "message":`Token authentication failed, please login to post`});
+        res.status(403);
+        res.json({"auth": false, "message":`Forbidden: Token authentication failed, please login to post`});
       } else {
         Blacklist.find({"token": token})
         .then(docs => {
@@ -25,15 +25,18 @@ module.exports.verifyJwtToken = (req, res, next) => {
             req.token = token;
             req.exp = jwt.decode(token).exp;
             req._id = decoded._id;
-            User.findById(req._id)
-            .then(user => { 
-              req.username = user.username 
-              next();
+            User.findOneAndUpdate({ _id: req._id }, { lastActive: Date.now(), active: true }, { useFindAndModify: false }, (err, doc) => {
+              if (err) {
+                console.log(`User ${req._id} last active could not be updated.`);
+              } else {
+                req.username = doc.username 
+                next();
+              }
             });
           } else {
             // If token is blacklisted send 500 response
-            res.status(500);
-            res.json({"auth": false, "message":`Token invalid, please login to post`});
+            res.status(403);
+            res.json({"auth": false, "message":`Forbidden: Token invalid, please login to post`});
           }
         })
       }
