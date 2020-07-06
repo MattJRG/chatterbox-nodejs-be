@@ -41,18 +41,18 @@ timer.add(task => {
   });
 }).start();
 
-// Add a task to the schedule that sets users that are currently marked as active but were last active 10 mins ago
+// Add a task to the schedule that sets users that are currently marked as online but their last activity was 10 mins ago
 timer.add(task => {
-  console.log('Checking for inactive users...');
-  User.updateMany( { active: true, lastActive: { $lte: Date.now() - 600000 } }, {"$set":{active: false}}, (err, result) => {
+  console.log('Checking for offline users...');
+  User.updateMany( { online: true, lastActivity: { $lte: Date.now() - 600000 } }, {"$set":{online: false}}, (err, result) => {
     if (!err) {
       if (result.nModified > 0) {
-        console.log('Active users updated.');
+        console.log('Online users updated.');
       } else {
-        console.log('No users needed to be set to inactive')
+        console.log('No users needed to be set to offline')
       }
     } else {
-      console.log('There was an error updating inactive users:')
+      console.log('There was an error updating offline users:')
       console.log(err)
     }
   })

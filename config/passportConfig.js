@@ -15,17 +15,21 @@ passport.use(
       // Wrong password
       } else if (!user.verifyPassword(password)) {
         return done(null, false, { message: 'Wrong password.' });
+      // User not verified
       } else if (!user.verified) {
-        return done(null, false, { message: 'Account not verified.'})
+        return done(null, false, { message: 'Account not verified.'});
+      // Account deactivated
+      } else if (!user.accountDeactivated) {
+        return done(null, false, { message: 'Account deactivated.'});
       // Authentication succeeded
       } else {
-        User.findOneAndUpdate({ email: username }, { lastActive: Date.now(), active: true }, { useFindAndModify: false }, (err, user) => {
+        User.findOneAndUpdate({ email: username }, { lastActivity: Date.now(), online: true }, { useFindAndModify: false }, (err, user) => {
           if (!err) {
-            // Login successful - set user to active
+            // Login successful - set user to online
             return done(null, user);
           } else {
-            // Login successful but couldn't update user active status
-            console.log(`Couldn't update user: ${username} active status.`)
+            // Login successful but couldn't update user online status
+            console.log(`Couldn't update user: ${username} online status.`)
             return done(null, user);
           }
         });

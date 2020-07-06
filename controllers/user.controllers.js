@@ -14,6 +14,9 @@ module.exports.register = (req, res, next) => {
   user.username = req.body.username;
   user.email = req.body.email;
   user.password = req.body.password;
+  user.accountDeactivated = false;
+  user.friends = [];
+  user.pendingFriends = [];
   // Auto verify for catch-up demo purposes
   user.verified = true;
   // user.verified = false;
@@ -56,9 +59,9 @@ module.exports.authenticate = (req, res, next) => {
 
 // Upon logout store user token in blacklist to prevent it being used maliciously
 module.exports.logout = (req, res, next) => {
-  User.findOneAndUpdate({ _id: req._id }, { active: false }, { useFindAndModify: false }, (err, user) => {
+  User.findOneAndUpdate({ _id: req._id }, { online: false }, { useFindAndModify: false }, (err, user) => {
     if (err) console.log(err);
-    // If user successfully set to inactive, log out user
+    // If user successfully set to offline, log out user
     else {
       let invalidToken = new Blacklist();
       console.log('User logging out....')
@@ -80,10 +83,10 @@ module.exports.logout = (req, res, next) => {
 }
 
 module.exports.users = (req, res, next) => {
-  User.find({ active: true })
-  .then(activeUsers => {
+  User.find({ online: true })
+  .then(onlineUsers => {
     // Strip out all but essential user data for the response
-    let reducedUsers = activeUsers.reduce((arr, user, i) => {
+    let reducedUsers = onlineUsers.reduce((arr, user, i) => {
       arr.push({
         userId: user._id,
         username: user.username,
@@ -93,7 +96,7 @@ module.exports.users = (req, res, next) => {
     // Need to add friend and pending friend request properties
     console.log(reducedUsers);
     res.status(200);
-    res.json({ "activeUsers": reducedUsers })
+    res.json({ "onlineUsers": reducedUsers })
   })
 }
 

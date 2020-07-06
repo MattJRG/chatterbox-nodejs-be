@@ -29,11 +29,20 @@ var userSchema = new mongoose.Schema({
   currentlyResettingPassword: {
     type: Boolean
   },
-  lastActive: {
+  lastActivity: {
     type: Number
   },
-  active: {
+  online: {
     type: Boolean
+  },
+  friends: {
+    type: Array
+  },
+  pendingFriends: {
+    type: Array
+  },
+  accountDeactivated: {
+    type: Boolean,
   },
   saltSecret: String
 });

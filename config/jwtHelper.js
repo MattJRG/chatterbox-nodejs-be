@@ -11,11 +11,11 @@ module.exports.verifyJwtToken = (req, res, next) => {
     token = req.headers['authorization'].split(' ')[1];
   }
   if (!token) {
-    return res.status(403).send({ auth: false, message: 'No token provided.' });
+    return res.status(401).send({ auth: false, message: 'No token provided.' });
   } else {
     jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
       if (err) {
-        res.status(403);
+        res.status(401);
         res.json({"auth": false, "message":`Forbidden: Token authentication failed, please login to post`});
       } else {
         Blacklist.find({"token": token})
@@ -25,9 +25,9 @@ module.exports.verifyJwtToken = (req, res, next) => {
             req.token = token;
             req.exp = jwt.decode(token).exp;
             req._id = decoded._id;
-            User.findOneAndUpdate({ _id: req._id }, { lastActive: Date.now(), active: true }, { useFindAndModify: false }, (err, doc) => {
+            User.findOneAndUpdate({ _id: req._id }, { lastActivity: Date.now(), online: true }, { useFindAndModify: false }, (err, doc) => {
               if (err) {
-                console.log(`User ${req._id} last active could not be updated.`);
+                console.log(`User ${req._id} last activity timestamp could not be updated.`);
               } else {
                 req.username = doc.username 
                 next();
@@ -35,7 +35,7 @@ module.exports.verifyJwtToken = (req, res, next) => {
             });
           } else {
             // If token is blacklisted send 500 response
-            res.status(403);
+            res.status(401);
             res.json({"auth": false, "message":`Forbidden: Token invalid, please login to post`});
           }
         })
