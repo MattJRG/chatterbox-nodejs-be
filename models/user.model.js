@@ -35,10 +35,16 @@ var userSchema = new mongoose.Schema({
   online: {
     type: Boolean
   },
+  // Stores current friend userIds
   friends: {
     type: Array
   },
+  // Stores userIds for users you have sent a request to
   pendingFriends: {
+    type: Array
+  },
+  // Stores userIds for users who have added the user as a friend
+  pendingRequests: {
     type: Array
   },
   accountDeactivated: {

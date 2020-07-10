@@ -19,7 +19,7 @@ passport.use(
       } else if (!user.verified) {
         return done(null, false, { message: 'Account not verified.'});
       // Account deactivated
-      } else if (!user.accountDeactivated) {
+      } else if (user.accountDeactivated) {
         return done(null, false, { message: 'Account deactivated.'});
       // Authentication succeeded
       } else {

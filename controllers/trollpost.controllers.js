@@ -3,10 +3,6 @@ const _ = require('lodash');
 const { post } = require('../routes/trolls.router');
 const { format } = require('morgan');
 
-// const monk = require('monk');
-// const db = monk(process.env.MONGO_URI || 'localhost/trollbox');
-// const trollposts = db.get('trollposts');
-
 const TrollPost = mongoose.model('TrollPost');
 
 module.exports.getPosts = (req, res) => {

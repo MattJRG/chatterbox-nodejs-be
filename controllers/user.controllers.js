@@ -41,7 +41,7 @@ module.exports.register = (req, res, next) => {
   })
 }
 
-module.exports.authenticate = (req, res, next) => {
+module.exports.login = (req, res, next) => {
   // call for passport authentication
   passport.authenticate('local', (err, user, info) => {
     // error from passport middleware
@@ -60,16 +60,15 @@ module.exports.authenticate = (req, res, next) => {
 // Upon logout store user token in blacklist to prevent it being used maliciously
 module.exports.logout = (req, res, next) => {
   User.findOneAndUpdate({ _id: req._id }, { online: false }, { useFindAndModify: false }, (err, user) => {
+    // If there is an error updating log it
     if (err) console.log(err);
     // If user successfully set to offline, log out user
     else {
       let invalidToken = new Blacklist();
       console.log('User logging out....')
       invalidToken.token = req.token;
-      console.log(req.exp)
       invalidToken.created = req.exp * 1000;
       invalidToken.save((err, doc) => {
-        console.log(doc)
         if (!err) {
           res.status(200);
           res.json({ "message": 'loggout successful'})
@@ -82,35 +81,29 @@ module.exports.logout = (req, res, next) => {
   })
 }
 
-module.exports.users = (req, res, next) => {
-  User.find({ online: true })
-  .then(onlineUsers => {
-    // Strip out all but essential user data for the response
-    let reducedUsers = onlineUsers.reduce((arr, user, i) => {
-      arr.push({
-        userId: user._id,
-        username: user.username,
+// Upon logout store user token in blacklist to prevent it being used maliciously
+module.exports.deactivate = (req, res, next) => {
+  User.findOneAndUpdate({ _id: req._id }, { online: false, accountDeactivated: true }, { useFindAndModify: false }, (err, user) => {
+    // If there is an error updating log it
+    if (err) console.log(err);
+    // If user successfully set to offline, log out user
+    else {
+      let invalidToken = new Blacklist();
+      console.log('User logging out....');
+      invalidToken.token = req.token;
+      invalidToken.created = req.exp * 1000;
+      invalidToken.save((err, doc) => {
+        if (!err) {
+          res.status(200);
+          res.json({ "message": 'Account deactivation successful'})
+        } else {
+          res.status(204);
+          console.log(err);
+        }
       })
-      return arr;
-    }, []);
-    // Need to add friend and pending friend request properties
-    console.log(reducedUsers);
-    res.status(200);
-    res.json({ "onlineUsers": reducedUsers })
+    }
   })
 }
-
-// Not currently using...
-// module.exports.userProfile = (req, res, next) => {
-//   User.findOne({ _id: req._id },
-//     (err, user) => {
-//       if (!user) {
-//         return res.status(404).json({ status: false, message: "User record not found." });
-//       } else {
-//         return res.status(200).json({ status: true, user : _.pick(user,['username','email']) });
-//       }
-//     })
-// }
 
 // Handle account verification requests
 module.exports.verifyAccount = (req, res, next) => {
@@ -200,6 +193,147 @@ module.exports.resetPassword = (req, res, next) => {
   })
 }
 
+module.exports.getUsers = (req, res, next) => {
+  // Fetch the req user's friends
+  User.findOne({ _id: req._id })
+  .then(reqUser => {
+    // Get the users friends
+    let friends = reqUser.friends;
+    // Get the people the user has added
+    let pendingFriends = reqUser.pendingFriends;
+    // Get the people who have added the user
+    let friendRequests = reqUser.pendingRequests;
+    // Find all users in database
+    User.find()
+    .then(users => {
+      // console.log('Found online users')
+      // Strip out all but essential user data and filter only online users
+      let onlineFriends = [];
+      let onlineUsers = [];
+      let offlineFriends = [];
+      let offlineUsers = [];
+      let pendingRequests = [];
+      let reqUserFiltered = false;
+      users.forEach(user => {
+        // If the user is the reqUser ignore them and don't check for them again
+        if (!reqUserFiltered && user._id.toString() == reqUser._id.toString()) {
+          reqUserFiltered = true;
+          console.log('Req user filtered');
+        // If user is on the reqUsers friend requests add them to that array
+        } else if (friendRequests.includes(user._id)){
+          pendingRequests.push(returnSimplifiedUser(user, false, pendingFriends));
+        // If user is online and friends with reqUser add them to onlineFriends array
+        } else if (user.online && friends.includes(user._id)) {
+          onlineFriends.push(returnSimplifiedUser(user, true, pendingFriends));
+        // If user is online and not friends with reqUser add them to onlineUsers array
+        } else if (user.online && !friends.includes(user._id)) {
+          onlineUsers.push(returnSimplifiedUser(user, false, pendingFriends));
+        // If user is offline and friends with reqUser add them to offlineFriends array
+        } else if (user.online && friends.includes(user._id)) {
+          offlineUsers.push(returnSimplifiedUser(user, true, pendingFriends));
+        // If user is offline and not friends with reqUser add them to offlineUsers array
+        } else if (!user.online && !friends.includes(user._id)) {
+          offlineUsers.push(returnSimplifiedUser(user, false, pendingFriends));
+        }
+      });
+      let resData = {
+        pendingRequests,
+        onlineFriends,
+        onlineUsers,
+        offlineFriends,
+        offlineUsers
+      }
+      // Need to add friend and pending friend request properties
+      res.status(200);
+      res.json({ "userData": resData })
+    })
+    .catch(err => {
+      console.log(err);
+    })
+  })
+}
+
+module.exports.addFriend = (req, res, next) => {
+  // Id of user adding the recipient
+  let userId = req._id;
+  // Id of recipient
+  let recipientId = req.body.userId;
+  console.log(req._id);
+  console.log(req.body);
+  // Check user isn't adding themselves as friend
+  if (recipientId == userId) {
+    res.status(400);
+    res.json({ "message": "Cannot add yourself as a friend." })
+  } else {
+    // Find the user document in the DB
+    console.log(`User: ${userId}`);
+    console.log(`Recipient: ${recipientId}`);
+    User.findOne({ _id: userId })
+    .then(user => {
+      // If the user does not already have requested friend as a friend or as a pending friend
+      if (!user.friends.includes(recipientId) && !user.pendingFriends.includes(recipientId)) {
+        console.log('Updating...')
+        // Now retrieve the recipient from the database
+        User.findOne({ _id: recipientId })
+        .then(recipientUser => {
+          // If the recipientUser does not already have the user as a friend or as a pending request
+          if (!user.friends.includes(recipientId) && !user.pendingRequests.includes(recipientId)) {
+            // We can now update each user
+            // First add the recipientId to the users pendingFriends
+            User.findOneAndUpdate(
+              { _id: userId },
+              { "$push": { "pendingFriends": recipientId } },
+              { useFindAndModify: false },
+              (err, user) => {
+                // If that is successful add the userId to the recipinents pendingRequests
+                if (!err) {
+                  console.log('Success ')
+                  console.log(user);
+                  User.findOneAndUpdate(
+                    { _id: recipientId },
+                    { "$push": { "pendingRequests":  userId } },
+                    { useFindAndModify: false },
+                    (err, user) => {
+                      // If no error all records are now up to date
+                      if (!err) {
+                        res.status(200);
+                        res.json({ "onlineUsers": reducedUsers })
+                      // If error log to server console
+                      } else {
+                        console.log(`Error adding id:${userId} to user:${recipientId} pending requests.`);
+                      }
+                    })
+                // If error log to server console
+                } else {
+                  console.log(`Error adding id:${recipientId} to user:${userId} pending friends.`);
+                }
+            });
+          }
+        });
+      // If user has the recipient on their friend list or pending list respond with error
+      } else {
+        console.log('User already in friends list..');
+        res.status(400);
+        res.json({ "message": "User already in your friends list." });
+      }
+    }).catch(err => {
+      console.log(err);
+    })
+  }
+}
+
+// Not currently using...
+// module.exports.userProfile = (req, res, next) => {
+//   User.findOne({ _id: req._id },
+//     (err, user) => {
+//       if (!user) {
+//         return res.status(404).json({ status: false, message: "User record not found." });
+//       } else {
+//         return res.status(200).json({ status: true, user : _.pick(user,['username','email']) });
+//       }
+//     })
+// }
+
 // Nodemailer stuff!
 let transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -238,6 +372,16 @@ function sendEmail(sendAddress, subject, message) {
 
 
 // Utility Functions
+
+function returnSimplifiedUser(user, friend, pendingFriends) {
+  return {
+    userId: user._id,
+    username: user.username,
+    online: user.online,
+    friend: friend,
+    pendingFriend: pendingFriends.includes(user._id)
+  }
+}
 
 function makeid(length) {
   var result           = '';
