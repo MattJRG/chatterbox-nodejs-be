@@ -16,7 +16,7 @@ router.put('/deactivate', jwtHelper.verifyJwtToken, ctrlUser.deactivate);
 // Users
 router.get('/get_users', jwtHelper.verifyJwtToken, ctrlUser.getUsers);
 router.post('/add_friend', jwtHelper.verifyJwtToken, ctrlUser.addFriend);
-// router.get('/respond_friend_request', jwtHelper.verifyJwtToken, ctrlUser.respondToFriendRequest);
+router.post('/respond_friend_request', jwtHelper.verifyJwtToken, ctrlUser.respondToFriendRequest);
 // router.get('/remove_friend', jwtHelper.verifyJwtToken, ctrlUser.removeFriend);
 
 

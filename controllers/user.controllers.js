@@ -208,17 +208,19 @@ module.exports.getUsers = (req, res, next) => {
     .then(users => {
       // console.log('Found online users')
       // Strip out all but essential user data and filter only online users
+      let pendingRequests = [];
       let onlineFriends = [];
       let onlineUsers = [];
       let offlineFriends = [];
       let offlineUsers = [];
-      let pendingRequests = [];
+      // Define variable to track if the reqUser has been filtered out of response
       let reqUserFiltered = false;
       users.forEach(user => {
         // If the user is the reqUser ignore them and don't check for them again
         if (!reqUserFiltered && user._id.toString() == reqUser._id.toString()) {
           reqUserFiltered = true;
           console.log('Req user filtered');
+          console.log(user.username)
         // If user is on the reqUsers friend requests add them to that array
         } else if (friendRequests.includes(user._id)){
           pendingRequests.push(returnSimplifiedUser(user, false, pendingFriends));
@@ -229,8 +231,8 @@ module.exports.getUsers = (req, res, next) => {
         } else if (user.online && !friends.includes(user._id)) {
           onlineUsers.push(returnSimplifiedUser(user, false, pendingFriends));
         // If user is offline and friends with reqUser add them to offlineFriends array
-        } else if (user.online && friends.includes(user._id)) {
-          offlineUsers.push(returnSimplifiedUser(user, true, pendingFriends));
+        } else if (!user.online && friends.includes(user._id)) {
+          offlineFriends.push(returnSimplifiedUser(user, true, pendingFriends));
         // If user is offline and not friends with reqUser add them to offlineUsers array
         } else if (!user.online && !friends.includes(user._id)) {
           offlineUsers.push(returnSimplifiedUser(user, false, pendingFriends));
@@ -258,8 +260,6 @@ module.exports.addFriend = (req, res, next) => {
   let userId = req._id;
   // Id of recipient
   let recipientId = req.body.userId;
-  console.log(req._id);
-  console.log(req.body);
   // Check user isn't adding themselves as friend
   if (recipientId == userId) {
     res.status(400);
@@ -269,35 +269,35 @@ module.exports.addFriend = (req, res, next) => {
     console.log(`User: ${userId}`);
     console.log(`Recipient: ${recipientId}`);
     User.findOne({ _id: userId })
-    .then(user => {
+    .then(reqUser => {
       // If the user does not already have requested friend as a friend or as a pending friend
-      if (!user.friends.includes(recipientId) && !user.pendingFriends.includes(recipientId)) {
-        console.log('Updating...')
+      if (!reqUser.friends.includes(recipientId) && !reqUser.pendingFriends.includes(recipientId)) {
+        console.log('Updating...');
         // Now retrieve the recipient from the database
         User.findOne({ _id: recipientId })
         .then(recipientUser => {
           // If the recipientUser does not already have the user as a friend or as a pending request
-          if (!user.friends.includes(recipientId) && !user.pendingRequests.includes(recipientId)) {
+          if (!recipientUser.friends.includes(reqUser) && !recipientUser.pendingRequests.includes(reqUser)) {
             // We can now update each user
             // First add the recipientId to the users pendingFriends
             User.findOneAndUpdate(
               { _id: userId },
               { "$push": { "pendingFriends": recipientId } },
               { useFindAndModify: false },
-              (err, user) => {
+              (err, reqUserUpdate) => {
                 // If that is successful add the userId to the recipinents pendingRequests
                 if (!err) {
                   console.log('Success ')
-                  console.log(user);
+                  console.log(reqUserUpdate);
                   User.findOneAndUpdate(
                     { _id: recipientId },
                     { "$push": { "pendingRequests":  userId } },
                     { useFindAndModify: false },
-                    (err, user) => {
+                    (err, recUserUpdate) => {
                       // If no error all records are now up to date
                       if (!err) {
                         res.status(200);
-                        res.json({ "onlineUsers": reducedUsers })
+                        res.json({ "message": `Success user ${userId} friend request sent.` })
                       // If error log to server console
                       } else {
                         console.log(`Error adding id:${userId} to user:${recipientId} pending requests.`);
@@ -319,6 +319,66 @@ module.exports.addFriend = (req, res, next) => {
     }).catch(err => {
       console.log(err);
     })
+  }
+}
+
+module.exports.respondToFriendRequest = (req, res, next) => {
+  // If accept friend request
+  if (req.body.accept) {
+    User.findOneAndUpdate(
+      { _id: req._id },
+      // Remove new friend's id from pendingRequests
+      { "$pull": { "pendingRequests":  req.body.userId }, "$push": { "friends":  req.body.userId } },
+      // Add new friend's id to user friends
+      { useFindAndModify: false },
+      (err, user) => {
+        if (!err) {
+          console.log('Added new friend')
+          User.findOneAndUpdate(
+            { _id: req.body.userId },
+            // Remove user's id from new friends pendingFriends
+            { "$pull": { "pendingFriends":  req._id }, "$push": { "friends":  req._id } },
+            // Add user's id to new friends freinds array
+            { useFindAndModify: false },
+            (err, friend) => {
+              if (!err) {
+                console.log('Updated friends details')
+                res.status(200);
+                res.json({ "message": `Successfully accepted ${friend.username}'s friend request.` });
+              } else {
+                console.log(`There was an error updating user ${friend._id}.`);
+              }
+            });
+       } else {
+        console.log(`There was an error updating user ${user._id}.`);
+        }
+      });
+    // If decline friend request
+  } else if (!req.body.accept) {
+    User.findOneAndUpdate(
+      { _id: req._id },
+      // Remove non friend's id from pendingRequests
+      { "$pull": { "pendingRequests":  req.body.userId } },
+      { useFindAndModify: false },
+      (err, user) => {
+        if (!err) {
+          User.findOneAndUpdate(
+            { _id: req.body.userId },
+            // Remove user's id from non friends pendingFriends
+            { "$pull": { "pendingFriends":  req._id } },
+            { useFindAndModify: false },
+            (err, friend) => {
+              if (!err) {
+                res.status(200);
+                res.json({ "message": `Successfully declined ${friend.username}'s friend request.` });
+              } else {
+                console.log(`There was an error updating user ${friend._id}.`);
+              }
+            });
+        } else {
+          console.log(`There was an error updating user ${user._id}.`);
+        }
+    });
   }
 }
 
