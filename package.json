@@ -17,7 +17,7 @@
     "express": "^4.17.1",
     "express-rate-limit": "^5.0.0",
     "jsonwebtoken": "^8.3.0",
-    "lodash": "^4.17.15",
+    "lodash": "^4.17.19",
     "mongoose": "^5.9.18",
     "monk": "^7.1.1",
     "morgan": "^1.9.1",
