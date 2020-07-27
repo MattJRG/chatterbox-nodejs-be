@@ -17,7 +17,8 @@ const rtsIndex = require('./routes/index.router');
 const trollsRouter = require('./routes/trolls.router');
 const rhymesRouter = require('./routes/rhymes.router');
 const userRouter = require('./routes/upload.router');
-const authRouter = require('./routes/auth.router').router;
+const messageRouter = require('./routes/message.router');
+const conversationRouter = require('./routes/conversation.router');
 
 // Setup Express.js
 const app = express();
@@ -87,6 +88,8 @@ app.get('/', (req, res) => {
 // API Route
 app.use('/api', rtsIndex);
 app.use('/trolls', trollsRouter);
+app.use('/conversation', conversationRouter);
+app.use('/message', messageRouter);
 app.use('/rhymes', rhymesRouter);
 app.use('/upload', userRouter);
 // app.use('/auth', authRouter);

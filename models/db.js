@@ -12,3 +12,5 @@ mongoose.set('useCreateIndex', true);
 require('./user.model');
 require('./trollpost.model');
 require('./blacklist.model');
+require('./conversation.model');
+require('./message.model');

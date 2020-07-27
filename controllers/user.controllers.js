@@ -10,6 +10,10 @@ const emailAccount = process.env.ACCOUNT;
 const emailPassword = process.env.PASSWORD;
 
 module.exports.register = (req, res, next) => {
+  if (user.username == 'Everyone') {
+    res.send(400);
+    res.json({ message: 'That username is taken.' });
+  }
   var user = new User();
   user.username = req.body.username;
   user.email = req.body.email;
@@ -65,7 +69,7 @@ module.exports.logout = (req, res, next) => {
     // If user successfully set to offline, log out user
     else {
       let invalidToken = new Blacklist();
-      console.log('User logging out....')
+      console.log(`User ${req._id} logging out....`)
       invalidToken.token = req.token;
       invalidToken.created = req.exp * 1000;
       invalidToken.save((err, doc) => {
@@ -219,7 +223,6 @@ module.exports.getUsers = (req, res, next) => {
         // If the user is the reqUser ignore them and don't check for them again
         if (!reqUserFiltered && user._id.toString() == reqUser._id.toString()) {
           reqUserFiltered = true;
-          console.log('Req user filtered');
           console.log(user.username)
         // If user is on the reqUsers friend requests add them to that array
         } else if (friendRequests.includes(user._id)){
@@ -393,6 +396,10 @@ module.exports.respondToFriendRequest = (req, res, next) => {
 //       }
 //     })
 // }
+
+module.exports.fetchUsernamesFromIds = (ids) => {
+  return User.find({ _id: { $in : [...ids] } }, 'username')
+}
 
 // Nodemailer stuff!
 let transporter = nodemailer.createTransport({

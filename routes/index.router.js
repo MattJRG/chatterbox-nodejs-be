@@ -19,7 +19,6 @@ router.post('/add_friend', jwtHelper.verifyJwtToken, ctrlUser.addFriend);
 router.post('/respond_friend_request', jwtHelper.verifyJwtToken, ctrlUser.respondToFriendRequest);
 // router.get('/remove_friend', jwtHelper.verifyJwtToken, ctrlUser.removeFriend);
 
-
 // Not currently using
 // router.get('/userProfile', jwtHelper.verifyJwtToken, ctrlUser.userProfile);
 
