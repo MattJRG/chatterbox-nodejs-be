@@ -10,7 +10,7 @@ const emailAccount = process.env.ACCOUNT;
 const emailPassword = process.env.PASSWORD;
 
 module.exports.register = (req, res, next) => {
-  if (user.username == 'Everyone') {
+  if (req.body.username == 'Everyone') {
     res.send(400);
     res.json({ message: 'That username is taken.' });
   }
