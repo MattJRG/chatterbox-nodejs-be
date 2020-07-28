@@ -133,15 +133,22 @@ module.exports.confirmUserPartOfConversation = (req, res, next) => {
 
 // Change conversation title
 module.exports.updateConversationTitle = (req, res, next) => {
+  // Create variable for new title from request
+  let newTitle = req.body.newTitle;
   // Check request is valid
-  if (isValidTitle(req.body.newTitle)) {
+  if (isValidTitle(newTitle)) {
+    // Check title isn't Trollbox
+    if (newTitle === 'Trollbox') {
+      res.status(400);
+      res.json({ error: `Sorry there can only be one Trollbox.`});
+    }
     // Check the conversation exists
     // If it does then change the title to the one in the request
-    Conversation.findByIdAndUpdate({ _id: req.body.conversationId }, { title: req.body.newTitle }, { useFindAndModify: false }, (err, doc) => {
+    Conversation.findByIdAndUpdate({ _id: req.conversationId }, { title: 'Yes' }, function(err, doc) {
       // Respond to say the conversation title was updated
       if (!err) {
         res.status(200);
-        res.json({ message: `Success conversation title changed to ${req.body.newTitle}.`});
+        res.json({ message: `Success conversation title changed to ${newTitle}.`});
       } else {
         res.status(500);
         res.json({ error: `Error title could not be updated.`});
