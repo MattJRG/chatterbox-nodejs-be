@@ -16,7 +16,7 @@
     "cors": "^2.8.5",
     "express": "^4.17.1",
     "express-rate-limit": "^5.0.0",
-    "jsonwebtoken": "^8.3.0",
+    "jsonwebtoken": "^9.0.0",
     "lodash": "^4.17.15",
     "mongoose": "^5.9.18",
     "monk": "^7.1.1",
